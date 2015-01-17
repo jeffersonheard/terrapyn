@@ -1,0 +1,92 @@
+{% extends "pages/page.html" %}
+
+{% load mezzanine_tags pages_tags geoanalytics_tags inplace_edit %}
+
+{% block main %}{{ block.super }}
+    {% set_page_permissions page %}
+
+    {% with page.dataresourcepage as cm %}
+    {% inplace_edit "cm.content|md|safe" loads="geoanalytics_tags" %}
+
+    <div class="alert alert-success">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        Last updated {{ cm.resource.last_refresh|date:"l, F j Y, f a " }}
+    </div>
+    <hr>
+
+    <h2>Layer boundaries</h2>
+    <div class='simple-map' id="map" style='width: 100%; height:400px;'></div>
+
+    <h2>Data</h2>
+    <dl>
+        <dt>Original file</dt>
+        <dd>
+            {% inplace_edit "cm.resource.original_file" %}
+            {% if cm.resource.original_file %}
+                <a href="{{ cm.resource.original_file.url }}">(<i class="fa fa-download"></i> Download)</a>
+            {% endif %}</dd>
+        <dt>Working file</dt>
+        <dd>{% if cm.dataresource.resource_file %}
+            <a href="{{ cm.resource.resource_file.url }}"><i class="fa fa-download"></i> Download</a>
+            {% else %}No working file yet.
+        {% endif %}</dd>
+        <dt>Original URL</dt>
+        <dd>{% inplace_edit "cm.resource.resource_url" %} {% if cm.resource.resource_url %}<a href="{{ cm.resource.resource_url }}"><i class="fa fa-download"></i> Download</a>{% endif %}</dd>
+    </dl>
+
+    <h2>Services</h2>
+    <div class="list-group">
+        <a class='list-group-item'
+           href="/terrapyn/geocms/wfs/?service=wfs&request=GetFeature&version=2.0.0&typeNames={{ page.slug }}"
+           data-toggle="tooltip"
+           title="OGC WFS Web Feature Service 2.0.0. Suitable to import into QGIS or ArcGIS.">
+                Web Feature Service (WFS)
+        </a>
+        {% for layer in cm.resource.layer_set.all %}
+            {% if layer.renderedlayerpage_set.first %}{% with layer.renderedlayerpage_set.first as layerpage %}
+                <a class="list-group-item" href="{{ layerpage.get_absolute_url }}">(Page)</a>{% endwith %}
+            {% else %}
+                <a class="list-group-item"
+                   href="/terrapyn/geocms/wms/?service=wms&request=GetMap&version=1.1.0&layers={{ layer.slug }}">
+                    {{ layer.name }} (WMS)
+                </a>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    {% endwith %} {# dataresourcepage as cm #}
+{% endblock %}
+
+{% block extra_js %}
+    <script src="//cdnjs.cloudflare.com/ajax/libs/openlayers/2.13.1/OpenLayers.js"></script>
+    <script type="text/javascript">
+        $(function() {
+            var in_options = {
+                internalProjection: new OpenLayers.Projection('EPSG:3857'),
+                externalProjection: new OpenLayers.Projection("EPSG:4326")
+            };
+
+            var bboxLayer = new OpenLayers.Layer.Vector('bbox');
+            var wkt = new OpenLayers.Format.WKT(in_options);
+            var feature = wkt.read("{{ page.dataresourcepage.resource.bounding_box.wkt }}");
+            bboxLayer.addFeatures([feature]);
+            var bounds = feature.geometry.getBounds();
+
+            var map = new OpenLayers.Map({ div:'map', projection: "EPSG:3857", layers: [
+                new OpenLayers.Layer.XYZ(
+                        "OpenStreetMap",
+                        [
+                            "http://otile1.mqcdn.com/tiles/1.0.0/map/${z}/${x}/${y}.png",
+                            "http://otile2.mqcdn.com/tiles/1.0.0/map/${z}/${x}/${y}.png",
+                            "http://otile3.mqcdn.com/tiles/1.0.0/map/${z}/${x}/${y}.png",
+                            "http://otile4.mqcdn.com/tiles/1.0.0/map/${z}/${x}/${y}.png"
+                        ]
+                ),
+                bboxLayer
+            ]});
+
+            map.zoomToExtent(bounds);
+        });
+    </script>
+{% endblock %}
+
