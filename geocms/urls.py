@@ -2,7 +2,6 @@ from django.conf.urls import patterns, url
 
 from terrapyn.geocms import views, api
 
-
 urlpatterns = patterns('',
     url(r'^wms/', views.WMS.as_view(), name='wms'),
     url(r'^tms/(?P<layer>.*)/(?P<z>[0-9]+)/(?P<x>[0-9]+)/(?P<y>[0-9]+)/', views.tms, name='tms'),
@@ -25,7 +24,7 @@ urlpatterns = patterns('',
     url(r'^q/(?P<slug>[a-z0-9\-/]+)/fork_geometry/', views.create_dataset_with_parent_geometry),
     url(r'^q/(?P<slug>[a-z0-9\-/]+)/', views.CRUDView.as_view()),
 
-    # Geographica Model REST API
+    # Terrapyn Model REST API
 
     url(r'api/data-resource/$', api.DataResourceList.as_view(), name='data-resource-list'),
     url(r'api/data-resource/(?P<slug>[a-z0-9\-/]+)/$', api.DataResourceDetail.as_view(), name='data-resource-detail'),
