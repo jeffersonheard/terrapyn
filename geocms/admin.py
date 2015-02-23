@@ -4,7 +4,7 @@ from django.contrib.gis import admin
 from terrapyn.geocms.models import *
 
 
-admin.site.register(CatalogPage, PageAdmin)
+admin.site.register(DirectoryEntry, PageAdmin)
 admin.site.register(DataResource)
 admin.site.register(Layer)
 admin.site.register(Style)

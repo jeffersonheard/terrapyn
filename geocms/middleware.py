@@ -20,3 +20,5 @@ class PagePermissionsViewableMiddleware(object):
             authorize(request, page_or_none[0], view=True)
         else:
             return None
+
+

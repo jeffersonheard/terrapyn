@@ -1,7 +1,7 @@
 from rest_framework import serializers, fields
 
 from rest_framework_gis import fields as gis_fields
-from rest_framework_hstore import fields as hstore_fields
+# from rest_framework_hstore import fields as hstore_fields
 
 from terrapyn.geocms import models
 
@@ -12,8 +12,8 @@ class ResourceMetadataSerializer(serializers.ModelSerializer):
 
 class DataResourceSerializer(serializers.ModelSerializer):
     metadata = ResourceMetadataSerializer(many=True, required=False, read_only=True)
-    driver_config = hstore_fields.HStoreField(required=False)
-    metadata_properties = hstore_fields.HStoreField(required=False)
+    #driver_config = hstore_fields.HStoreField(required=False)
+    #metadata_properties = hstore_fields.HStoreField(required=False)
     last_change = fields.DateTimeField(required=False, read_only=True)
     last_refresh = fields.DateTimeField(required=False, read_only=True)
     next_refresh = fields.DateTimeField(required=False, read_only=True)
@@ -30,8 +30,8 @@ class DataResourceSerializer(serializers.ModelSerializer):
             'resource_url',
             'metadata_url',
             'metadata_xml',
-            'driver_config',
-            'metadata_properties',
+            #'driver_config',
+            #'metadata_properties',
             'last_change',
             'last_refresh',
             'next_refresh',
@@ -54,9 +54,9 @@ class StyleSerializer(serializers.ModelSerializer):
         )
 
 class LayerSerializer(serializers.ModelSerializer):
-    data_resource = serializers.SlugRelatedField(slug_field='slug')
-    default_style = serializers.SlugRelatedField(slug_field='slug')
-    styles = serializers.SlugRelatedField(many=True, slug_field='slug')
+    data_resource = serializers.SlugRelatedField(slug_field='slug', queryset=models.DataResource.objects.all())
+    default_style = serializers.SlugRelatedField(slug_field='slug', queryset=models.Style.objects.all())
+    styles = serializers.SlugRelatedField(many=True, slug_field='slug', queryset=models.Style.objects.all())
 
     class Meta:
         model = models.Layer

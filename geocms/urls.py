@@ -8,6 +8,10 @@ urlpatterns = patterns('',
     url(r'^wfs/', views.WFS.as_view(), name='wfs'),
     url(r'^download/(?P<slug>.*)$', views.download_file, name='download-original'),
 
+    url(r'^style/(?P<slug>[a-z0-9\-/]+)/', views.StylePageView.as_view(), name='style-page'),
+    url(r'^layer/(?P<slug>[a-z0-9\-/]+)/', views.LayerPageView.as_view(), name='layer-page'),
+    url(r'^res/(?P<slug>[a-z0-9\-/]+)/', views.web.DataResourcePageView.as_view(), name='resource-page'),
+
     # Data API
 
     url(r'^q/new/', views.create_dataset),

@@ -1,0 +1,185 @@
+{% extends 'bootstrap.html' %}
+
+{% block link_home %}/{% endblock %}
+{% block link_home_name %}
+    {{ style.title }}
+{% endblock %}
+
+{% block styles %}
+    <style type="text/css">
+        html, body {
+            height: 100%;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .fill {
+            height: 100%;
+        }
+
+        .olMap img {
+            max-width: none;
+        }
+
+        .olControlAttribution {
+            position: relative;
+            top: 10px;
+            text-shadow: 1px 1px 2px white, 0 0 1em white, 0 0 0.2em white;
+        }
+
+        .olControlMousePosition {
+            font-weight: bold;
+            text-shadow: 1px 1px 2px white, 0 0 1em white, 0 0 0.2em white;
+        }
+
+        body {
+            padding-top: 60px;
+            -webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
+            -moz-box-sizing: border-box; /* Firefox, other Gecko */
+            box-sizing: border-box; /* Opera/IE 8+ */
+        }
+
+    #stylesheet {
+        outline:none;
+        white-space: nowrap;
+        font-size: 9pt;
+        font-family: "consolas", "Bitstream Vera Sans Mono", "Lucida Console", monospace;
+
+    }
+    </style>
+
+{% endblock %}
+
+{% block navbar_body %}
+<ul class="nav pull-right">
+    <li><a id='help' href="http://www.mapbox.com/tilemill/docs/manual/carto/" target="_blank"><i class="icon-question-sign"></i> Help</a></li>
+    <li><a id='save' href="#"><i class="icon-save"></i> Save</a></li>
+    {% if layer %}
+    <li><a id='save' href="/{{ layer.data_resource.slug }}/"><i class="icon-picture"></i> Data Reference</a></li>
+    {% endif %}
+</ul>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid fill">
+        <div class="row-fluid fill">
+            <form class="span3 fill" action='' method='POST'>
+                {% csrf_token %}
+                <textarea name="" id="stylesheet" class='input-block-level'>{{ style.stylesheet }}</textarea>
+            </form>
+
+            <div class="span9 fill" id="map-area"></div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+    <script type="text/javascript">
+
+        var in_options = {
+            internalProjection: new OpenLayers.Projection('EPSG:3857'),
+            externalProjection: new OpenLayers.Projection("EPSG:4326")
+        };
+
+        var wkt = new OpenLayers.Format.WKT(in_options);
+
+        var feature = wkt.read("{{ layer.data_resource.metadata.bounding_box.wkt }}");
+        var bounds = feature.geometry.getBounds();
+
+
+    var overlay_title = "{{ layer.title }}";
+    var overlay_base_url = "{% url "tms" slug="{{ layer.slug }}" %}";
+    var overlay_identifier = "{{ layer.slug }}";
+    var overlay_style = "{{ style.slug }}";
+
+    $(function() {
+        var map = new OpenLayers.Map({ div: "map-area", projection: "EPSG:3857" });
+        var base_layers = [];
+        var overlays = [];
+
+        base_layers.push(new OpenLayers.Layer.XYZ(
+                "OpenStreetMap",
+                [
+                    "http://otile1.mqcdn.com/tiles/1.0.0/osm/${z}/${x}/${y}.png",
+                    "http://otile2.mqcdn.com/tiles/1.0.0/osm/${z}/${x}/${y}.png",
+                    "http://otile3.mqcdn.com/tiles/1.0.0/osm/${z}/${x}/${y}.png",
+                    "http://otile4.mqcdn.com/tiles/1.0.0/osm/${z}/${x}/${y}.png"
+                ],
+                {
+                    attribution: "Data, imagery and map information provided by <a href='http://www.mapquest.com/'  target='_blank'>MapQuest</a>, <a href='http://www.openstreetmap.org/' target='_blank'>Open Street Map</a> and contributors, <a href='http://creativecommons.org/licenses/by-sa/2.0/' target='_blank'>CC-BY-SA</a>  <img src='http://developer.mapquest.com/content/osm/mq_logo.png' border='0'>",
+                    transitionEffect: "resize"
+                }
+        ));
+
+        // actually add the layers and all
+        map.addLayers(base_layers);
+        if(bounds) {
+            map.zoomToExtent(bounds);
+        }
+        else {
+            map.setCenter(new OpenLayers.LonLat(x, y), zoom_level);
+        }
+
+
+        var overlay = new OpenLayers.Layer.XYZ(
+            overlay_title,
+            overlay_base_url + "${z}/${x}/${y}/?style=" + overlay_style,
+            {
+                isBaseLayer: false,
+                transitionEffect: "resize"
+            }
+        );
+        map.addLayers([overlay]);
+        overlay.setVisibility(true);
+
+        var ssElt = $("#stylesheet");
+        ssElt.css('height', window.innerHeight-60);
+        window.onresize = function() {
+            ssElt.css('height', window.innerHeight - 60);
+        };
+
+        $("#save").click(function() {
+            $.ajax({
+                url: '{% url "style-detail" slug=style.slug %}',
+                type: "PUT",
+                data: {
+                    stylesheet : ssElt.val()
+                },
+                dataType: "json",
+                success: function(tempname, textstatus, xHr) {
+                    if(tempname.error) {
+                        alert(tempname.error);
+                    }
+                    else {
+                        map.removeLayer(overlay);
+                        overlay = new OpenLayers.Layer.XYZ(
+                            overlay_title,
+                            overlay_base_url + "${z}/${x}/${y}/?style=" + tempname.success,
+                            {
+                                isBaseLayer: false,
+                                transitionEffect: "resize"
+                            }
+                        );
+                        map.addLayers([overlay]);
+                    }
+                },
+                error: function() {
+                    console.log(arguments);
+                }
+            });
+        });
+
+        var original_value = ssElt.val();
+        $("#revert").click(function() {
+             ssElt.val(original_value);
+        });
+
+
+    });
+
+    </script>
+
+{% endblock %}

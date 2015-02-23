@@ -44,97 +44,12 @@ def get_user(request):
         return request.user
 
 
-class PagePermissionsMixin(models.Model):
-    owner = models.ForeignKey(User, related_name='owned_%(app_label)s_%(class)s', null=True)
-    public = models.BooleanField(default=True)
-    edit_users = models.ManyToManyField(User, related_name='editable_%(app_label)s_%(class)s', null=True, blank=True)
-    view_users = models.ManyToManyField(User, related_name='viewable_%(app_label)s_%(class)s', null=True, blank=True)
-    edit_groups = models.ManyToManyField(Group, related_name='group_editable_%(app_label)s_%(class)s', null=True, blank=True)
-    view_groups = models.ManyToManyField(Group, related_name='group_viewable_%(app_label)s_%(class)s', null=True, blank=True)
-
-    def can_add(self, request):
-        return self.can_change(request)
-
-    def can_delete(self, request):
-        return self.can_change(request)
-
-    def can_change(self, request):
-        user = get_user(request)
-
-        if user.is_authenticated():
-            if user.is_superuser:
-                ret = True
-            elif user.pk == self.owner.pk:
-                ret = True
-            else:
-                if self.edit_users.filter(pk=user.pk).exists():
-                    ret = True
-                elif self.edit_groups.filter(pk__in=[g.pk for g in user.groups.all()]):
-                    ret = True
-                else:
-                    ret =  False
-        else:
-            ret = False
-
-        return ret
-
-    def can_view(self, request):
-        user = get_user(request)
-
-        if self.public or not self.owner:
-            return True
-
-        if user.is_authenticated():
-            if user.is_superuser:
-                ret = True
-            elif user.pk == self.owner.pk:
-                ret = True
-            else:
-                if self.view_users.filter(pk=user.pk).exists():
-                    ret = True
-                elif self.view_groups.filter(pk__in=[g.pk for g in user.groups.all()]):
-                    ret = True
-                else:
-                    ret = False
-        else:
-            ret = False
-
-        return ret
-
-    def copy_permissions_to_children(self, recurse=False):
-        # pedantically implemented.  should use set logic to minimize changes, but ptobably not important
-        for child in self.children.all():
-            if isinstance(child, PagePermissionsMixin):
-                child.edit_users = [u for u in self.edit_users.all()]
-                child.view_users = [u for u in self.view_users.all()]
-                child.edit_groups = [g for g in self.edit_groups.all()]
-                child.view_groups = [g for g in self.view_groups.all()]
-                child.publicly_viewable = self.publicly_viewable
-                child.owner = self.owner
-                child.save()
-
-                if recurse:
-                    child.copy_permissions_to_children(recurse=True)
-
-
-    def copy_permissions_from_parent(self):
-        if self.parent:
-            parent = self.parent.get_content_model()
-            if isinstance(parent, PagePermissionsMixin):
-                self.view_groups = [g for g in self.parent.view_groups.all()]
-                self.edit_groups = [g for g in self.parent.edit_groups.all()]
-                self.view_users = [u for u in self.parent.view_users.all()]
-                self.edit_users = [u for u in self.parent.edit_users.all()]
-                self.public = self.parent.public
-                self.owner = self.parent.owner
-                self.save()
-
-    class Meta:
-        abstract = True
-
-
-class CatalogPage(Page, PagePermissionsMixin):
+class DirectoryEntry(Page):
     """Maintains an ordered catalog of data.  These pages are rendered specially but otherwise are not special."""
+
+    resources = models.ManyToManyField('geocms.DataResource', null=True, blank=True)
+    layers = models.ManyToManyField('geocms.Layer', null=True, blank=True)
+    styles = models.ManyToManyField('geocms.Style', null=True, blank=True)
 
     class Meta:
         ordering = ['title']
@@ -173,20 +88,20 @@ class CatalogPage(Page, PagePermissionsMixin):
         return p
 
     def can_add(self, request):
-        return PagePermissionsMixin.can_add(self, request)
+        return request.user.is_authenticated()
 
     def can_change(self, request):
-        return PagePermissionsMixin.can_change(self, request)
+        return request.user.is_authenticated()
 
     def can_delete(self, request):
-        return PagePermissionsMixin.can_delete(self, request)
+        return request.user.is_authenticated()
 
 
 def set_permissions_for_new_catalog_page(sender, instance, created, *args, **kwargs):
     if instance.parent and created:
         instance.copy_permissions_from_parent()
 
-set_permissions = post_save.connect(set_permissions_for_new_catalog_page, sender=CatalogPage, weak=False)
+set_permissions = post_save.connect(set_permissions_for_new_catalog_page, sender=DirectoryEntry, weak=False)
 
 
 

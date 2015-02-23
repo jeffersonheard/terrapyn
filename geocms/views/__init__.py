@@ -11,6 +11,7 @@ from django.db.models.loading import get_model
 from .kmz import *
 from .ows import *
 from .rest_data import *
+from .web import *
 from terrapyn.geocms.utils import to_referrer
 
 

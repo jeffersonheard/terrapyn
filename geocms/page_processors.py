@@ -2,7 +2,7 @@
 # page_processor_for(MyPage)(ga_resources.views.page_permissions_page_processor)
 from mezzanine.pages.page_processors import processor_for
 
-from terrapyn.geocms.models import CatalogPage
+from terrapyn.geocms.models import DirectoryEntry
 
 
 def page_permissions_page_processor(request, page):
@@ -19,7 +19,7 @@ def page_permissions_page_processor(request, page):
         "view_users": view_users,
     }
 
-@processor_for(CatalogPage)
+@processor_for(DirectoryEntry)
 def catalog_page_processor(request, page):
     viewable_children = []
     viewable_siblings = []

@@ -92,5 +92,5 @@ class CatalogPageFactory(factory.DjangoModelFactory):
     public = True
 
     class Meta:
-        model = models.CatalogPage
+        model = models.DirectoryEntry
 

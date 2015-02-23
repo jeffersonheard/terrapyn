@@ -58,6 +58,12 @@ class DataResource(Displayable):
     def __unicode__(self):
         return self.title
 
+    class Meta:
+        permissions = (
+            ('view_dataresource', "View data resource"),  # to add beyond the default
+        )
+
+
 
 class ResourceMetadata(models.Model):
     resource = models.ForeignKey(DataResource, related_name='metadata')
@@ -71,6 +77,11 @@ class ResourceMetadata(models.Model):
     def __unicode__(self):
         return str(self.resource) + "metadata object"
 
+    class Meta:
+        permissions = (
+            ('view_metadata', "View data resource metadata"),
+        )
+
 
 class Style(Displayable):
     legend = models.ImageField(upload_to='terrapyn.styles.legends', width_field='legend_width', height_field='legend_height', null=True, blank=True)
@@ -81,6 +92,11 @@ class Style(Displayable):
     def __unicode__(self):
         return self.title
 
+    class Meta:
+        permissions = (
+            ('view_style', "View stylesheet"),
+        )
+
 
 class Layer(Displayable):
     data_resource = models.ForeignKey(DataResource)
@@ -90,5 +106,10 @@ class Layer(Displayable):
 
     def __unicode__(self):
         return self.title
+
+    class Meta:
+        permissions = (
+            ('view_layer', "View layer"),
+        )
 
 

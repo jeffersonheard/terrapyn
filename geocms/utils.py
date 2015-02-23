@@ -15,7 +15,7 @@ from osgeo import osr
 from tastypie.models import ApiKey
 import re
 
-from terrapyn.geocms.models import CatalogPage, PagePermissionsMixin
+from terrapyn.geocms.models import DirectoryEntry
 
 
 def to_referrer(request):
@@ -177,7 +177,7 @@ def json_or_jsonp(r, i, code=200):
         return HttpResponse(i, mimetype='application/json', status=code)
 
 def user_page(user):
-    user_page, created = CatalogPage.objects.get_or_create(title=best_name(user), owner=user, in_menus=[], public=False, parent=None)
+    user_page, created = DirectoryEntry.objects.get_or_create(title=best_name(user), owner=user, in_menus=[], public=False, parent=None)
     if created:
         user_page.title = best_name(user) # this is a hack to assure that the slug is correct
         user_page.save()
@@ -185,17 +185,17 @@ def user_page(user):
     return user_page
 
 def get_data_page_for_user(user):
-    p, _ = CatalogPage.objects.get_or_create(title="Datasets", in_menus=[], public=False, owner=user, parent=user_page(user))
+    p, _ = DirectoryEntry.objects.get_or_create(title="Datasets", in_menus=[], public=False, owner=user, parent=user_page(user))
     return p
 
 
 def get_layer_page_for_user(user):
-    p, _ = CatalogPage.objects.get_or_create(title="Layers", in_menus=[], public=False, owner=user, parent=user_page(user))
+    p, _ = DirectoryEntry.objects.get_or_create(title="Layers", in_menus=[], public=False, owner=user, parent=user_page(user))
     return p
 
 
 def get_stylesheet_page_for_user(user):
-    p, _ = CatalogPage.objects.get_or_create(title="Stylesheets", in_menus=[], public=False, owner=user, parent=user_page(user))
+    p, _ = DirectoryEntry.objects.get_or_create(title="Stylesheets", in_menus=[], public=False, owner=user, parent=user_page(user))
     return p
 
 def authorize(request, page=None, edit=False, add=False, delete=False, view=False, do_raise=True):
@@ -210,7 +210,7 @@ def authorize(request, page=None, edit=False, add=False, delete=False, view=Fals
     if user.is_superuser:
         return page
 
-    if isinstance(page.get_content_model(), PagePermissionsMixin):
+    if hasattr(page, 'can_view'):
         page = page.get_content_model()
 
         if view:
