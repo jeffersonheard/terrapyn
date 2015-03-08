@@ -1,9 +1,10 @@
 import json
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404
+from django.http import HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404, render_to_response
 from matplotlib.finance import md5
 from osgeo import osr, ogr
 import logging
+from django.core.urlresolvers import reverse
 
 from terrapyn.ows.views import wms, wfs
 from terrapyn.geocms import models, dispatch
@@ -258,25 +259,28 @@ class WFS(wfs.WFS):
     adapter = WFSAdapter()
 
 
-def tms(request, layer, z, x, y, **kwargs):
-    z = int(z)
-    x = int(x)
-    y = int(y)
+def tms(request, layer, z=None, x=None, y=None, **kwargs):
+    if z and x and y:
+        z = int(z)
+        x = int(x)
+        y = int(y)
 
-    table = None
-    if '#' in layer:
-        layer_slug, table = layer.split('#')
+        table = None
+        if '#' in layer:
+            layer_slug, table = layer.split('#')
+        else:
+            layer_slug = layer
+
+        # dispatch.api_accessed.send(RenderedLayer, instance=layer_instance, user=user)
+        style = request.GET.get('style', Layer.objects.get(slug=layer_slug).default_style.slug)
+        cache = CacheManager.get().get_tile_cache([layer], [style])
+        rendered, png = cache.fetch_tile(z, x, y)
+        _log.debug("returning tile {z}/{x}/{y} with size {png}".format(z=z, x=x, y=y, png=len(png)))
+        rsp = HttpResponse(png, content_type='image/png')
+        rsp['Content-Disposition'] = 'attachment; filename="{z}.{x}.{y}.png"'.format(z=z, x=x, y=y)
+        return rsp
     else:
-        layer_slug = layer
-
-    # dispatch.api_accessed.send(RenderedLayer, instance=layer_instance, user=user)
-    style = request.GET.get('style', Layer.objects.get(slug=layer_slug).slug)
-    cache = CacheManager.get().get_tile_cache([layer], [style])
-    rendered, png = cache.fetch_tile(z, x, y)
-    _log.debug("returning tile {z}/{x}/{y} with size {png}".format(z=z, x=x, y=y, png=len(png)))
-    rsp = HttpResponse(png, content_type='image/png')
-    rsp['Content-Disposition'] = 'attachment; filename="{z}.{x}.{y}.png"'.format(z=z, x=x, y=y)
-    return rsp
+        return HttpResponseRedirect(reverse('layer-page', kwargs={'slug':layer}))
 
 def seed_layer(request, layer):
     mnz = int(request.GET['minz'])

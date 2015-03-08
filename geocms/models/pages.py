@@ -47,10 +47,6 @@ def get_user(request):
 class DirectoryEntry(Page):
     """Maintains an ordered catalog of data.  These pages are rendered specially but otherwise are not special."""
 
-    resources = models.ManyToManyField('geocms.DataResource', null=True, blank=True)
-    layers = models.ManyToManyField('geocms.Layer', null=True, blank=True)
-    styles = models.ManyToManyField('geocms.Style', null=True, blank=True)
-
     class Meta:
         ordering = ['title']
 

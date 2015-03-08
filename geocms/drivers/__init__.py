@@ -324,7 +324,6 @@ class Driver(object):
 
     def as_dataframe(self, **kwargs):
         """Return the entire dataset as a pandas dataframe"""
-
         raise NotImplementedError("This driver does not support dataframes")
 
     def summary(self, **kwargs):

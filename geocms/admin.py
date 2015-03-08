@@ -2,6 +2,7 @@ from mezzanine.pages.admin import PageAdmin
 from django.contrib.gis import admin
 
 from terrapyn.geocms.models import *
+from . import signals
 
 
 admin.site.register(DirectoryEntry, PageAdmin)

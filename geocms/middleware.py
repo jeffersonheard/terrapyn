@@ -17,7 +17,10 @@ class PagePermissionsViewableMiddleware(object):
 
         page_or_none = Page.objects.filter(slug=slug)
         if page_or_none.exists():
-            authorize(request, page_or_none[0], view=True)
+            try:
+                page_or_none.can_view(request)
+            except:
+                pass
         else:
             return None
 

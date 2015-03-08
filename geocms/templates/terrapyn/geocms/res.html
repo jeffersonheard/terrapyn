@@ -2,48 +2,106 @@
 
 {% load mezzanine_tags pages_tags geoanalytics_tags inplace_edit %}
 
+{% block title %}{{ res.title }}{% endblock %}
 {% block main %}{{ block.super }}
+    <h1>{{ res.title }} <small>Data Resource</small></h1>
+
+    {% if metadata %}
     <div class="alert alert-success">
         <button type="button" class="close" data-dismiss="alert">&times;</button>
         Last updated {{ res.resource.last_refresh|date:"l, F j Y, f a " }}
     </div>
     <hr>
+    {% else %}
+    <div class="alert alert-warning">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        File conversion in progress. Please wait a minute and press reload.
+    </div>
+    {% endif %}
 
+    {% if metadata %}
     <h2>Dataset boundaries</h2>
     <div class='simple-map' id="map" style='width: 100%; height:400px;'></div>
+    {% endif %}
 
     <h2>Data</h2>
-    <dl>
-        <dt>Original file</dt>
-        <dd>
-            {% inplace_edit "res.original_file" %}
+    <ul class="nav nav-pills">
             {% if res.original_file %}
-                <a href="{{ res.original_file.url }}">(<i class="fa fa-download"></i> Download)</a>
-            {% endif %}</dd>
-        <dt>Working file</dt>
-        <dd>{% if res.resource_file %}
-            <a href="{{ res.resource_file.url }}"><i class="fa fa-download"></i> Download</a>
-            {% else %}No working file yet.
-        {% endif %}</dd>
-        <dt>Original URL</dt>
-        <dd>{% inplace_edit "res.resource_url" %} {% if res.resource_url %}<a href="{{ res.resource_url }}"><i class="fa fa-download"></i> Download</a>{% endif %}</dd>
-    </dl>
+                <li><a href="{{ res.original_file.url }}"><i class="fa fa-download"></i> Download original file ({{ res.original_file.size|filesizeformat }})</a></li>
+            {% endif %}
+            {% if res.resource_file %}
+                <li><a href="{{ res.resource_file.url }}"><i class="fa fa-download"></i> Download working file ({{ res.working_file.size|filesizeformat }})</a></li>
+            {% else %}
+                <li>No working file yet.</li>
+            {% endif %}
+
+            {% if res.resource_url %}
+                <li><a href="{{ res.resource_url }}"><i class="fa fa-download"></i> Download from source URL</a></li>
+            {% endif %}
+    </ul>
+
+    <h3>Summary</h3>
+    <div class="row bg-primary">
+        <div class="col-md-2"><strong>Name</strong></div>
+        <div class="col-md-2"><strong>Kind</strong></div>
+        <div class="col-md-2"><strong># Not Null</strong></div>
+        <div class="col-md-6"><strong>Tags</strong></div>
+    </div>
+
+    {% for line in summary %}
+    {% if line.name != 'GEOMETRY' %}
+    <div class="row" style="border-top: 1px solid #bbb;">
+        <div class="col-md-2">{{ line.name }}</div>
+        <div class="col-md-2">{{ line.kind }}</div>
+        <div class="col-md-2">{{ line.count }}</div>
+        <div class="col-md-6">{{ line.tags|join:", " }}</div>
+
+        {% if line.uniques %}
+            <i>
+            <small>
+            <div class="col-md-2"></div>
+            <div class="col-md-2 text-info"><strong>Mode: </strong>{{ line.top }}</div>
+            <div class="col-md-2 text-info"><strong>Freq: </strong>{{ line.freq }}</div>
+            <div class="col-md-2 text-info"><strong># Unique: </strong>{{ line.unique }}</div>
+            <div class="col-md-4 text-info"><strong>Values: </strong>
+                {{ line.uniques|join:" / " }}
+            </div>
+            </small>
+            </i>
+        {% elif line.min %}
+            <i><small>
+            <div class="col-md-2"></div>
+            <div class="col-md-2 text-info"><strong>Min: </strong>{{ line.min }}</div>
+            <div class="col-md-2 text-info"><strong>Max: </strong>{{ line.max }}</div>
+            <div class="col-md-2 text-info"><strong>Mean: </strong>{{ line.mean }}</div>
+            </small></i>
+        {% endif %}
+    </div>
+    {% else %}
+    {% endif %}
+    {% endfor %}
+
+
 
     <h2>Services</h2>
     <div class="list-group">
         <a class='list-group-item'
-           href="/terrapyn/geocms/wfs/?service=wfs&request=GetFeature&version=2.0.0&typeNames={{ page.slug }}"
+           href="{% url 'wfs' %}?service=wfs&request=GetFeature&version=2.0.0&typeNames={{ res.slug }}"
            data-toggle="tooltip"
            title="OGC WFS Web Feature Service 2.0.0. Suitable to import into QGIS or ArcGIS.">
-                Web Feature Service (WFS)
+                Web Feature Service <span class="badge">WFS</span>
         </a>
-        {% for layer in res.resource.layer_set.all %}
+        {% for layer in res.layer_set.all %}
             {% if layer.renderedlayerpage_set.first %}{% with layer.renderedlayerpage_set.first as layerpage %}
                 <a class="list-group-item" href="{{ layerpage.get_absolute_url }}">(Page)</a>{% endwith %}
             {% else %}
                 <a class="list-group-item"
                    href="{% url "wms" %}?service=wms&request=GetMap&version=1.1.0&layers={{ layer.slug }}">
-                    {{ layer.name }} (WMS)
+                    {{ layer.title }} <span class="badge">WMS</span>
+                </a>
+                <a class="list-group-item"
+                   href="{% url "tms" layer=layer.slug %}">
+                    {{ layer.title }} <span class="badge">TMS</span>
                 </a>
             {% endif %}
         {% endfor %}
@@ -52,6 +110,7 @@
 
 {% block extra_js %}
     <script src="//cdnjs.cloudflare.com/ajax/libs/openlayers/2.13.1/OpenLayers.js"></script>
+    {% if metadata %}
     <script type="text/javascript">
         $(function() {
             var in_options = {
@@ -61,7 +120,7 @@
 
             var bboxLayer = new OpenLayers.Layer.Vector('bbox');
             var wkt = new OpenLayers.Format.WKT(in_options);
-            var feature = wkt.read("{{ page.metadata.bounding_box.wkt }}");
+            var feature = wkt.read("{{ metadata.bounding_box.wkt }}");
             bboxLayer.addFeatures([feature]);
             var bounds = feature.geometry.getBounds();
 
@@ -81,5 +140,6 @@
             map.zoomToExtent(bounds);
         });
     </script>
+    {% endif %}
 {% endblock %}
 

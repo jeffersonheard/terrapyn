@@ -5,6 +5,7 @@ from terrapyn.geocms import views, api
 urlpatterns = patterns('',
     url(r'^wms/', views.WMS.as_view(), name='wms'),
     url(r'^tms/(?P<layer>.*)/(?P<z>[0-9]+)/(?P<x>[0-9]+)/(?P<y>[0-9]+)/', views.tms, name='tms'),
+    url(r'^tms/(?P<layer>.*)/$', views.tms, name='tms'),
     url(r'^wfs/', views.WFS.as_view(), name='wfs'),
     url(r'^download/(?P<slug>.*)$', views.download_file, name='download-original'),
 
@@ -36,4 +37,9 @@ urlpatterns = patterns('',
     url(r'api/style/(?P<slug>[a-z0-9\-/]+)/$', api.StyleDetail.as_view(), name='style-detail'),
     url(r'api/layer/$', api.LayerList.as_view(), name='layer-list'),
     url(r'api/layer/(?P<slug>[a-z0-9\-/]+)/$', api.LayerDetail.as_view(), name='layer-detail'),
+
+    # Terrapyn Extra REST API
+
+    url(r'api/directory-entry/(?P<slug>[a-z0-9\-/]+)/$', api.DirectoryEntryDetail.as_view(), name='directoryentry-detail'),
+    url(r'api/directory-entry/$', api.DirectoryEntryList.as_view(), name='directoryentry-list'),
 )

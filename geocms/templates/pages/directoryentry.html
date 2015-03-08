@@ -1,0 +1,42 @@
+{% extends "pages/page.html" %}
+{% load pages_tags mezzanine_tags staticfiles %}
+
+{% block main %}
+    {% set_page_permissions page %}
+
+    <div class="row">
+    <div class="col-md-12">
+        <div id="treeview"></div>
+    </div>
+    </div>
+
+    <div class="btn-toolbar">
+    {% if page.perms.add %}
+        <div class="btn-group">
+            <button class="btn btn-default add-style">Add Style</button>
+            <button class="btn btn-default add-data">Add Data</button>
+            <button class="btn btn-default add-layer">Add Layer</button>
+            <button class="btn btn-default add-layer">Add Directory</button>
+        </div>
+    {% endif %}
+    {% if page.perms.change %}
+        <div class="btn-group"><a class="btn btn-default" href="/admin/pages/page/{{ page.pk }}/">Edit</a></div>
+    {% endif %}
+    </div>
+
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static "css/bootstrap-treeview.min.css" %}"/>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static "js/bootstrap-treeview.min.css" %}"></script>
+    <script type="text/javascript">
+        var DIRECTORY_ENTRY = {
+            slug: "{{ page.slug }}",
+            endpoint: "{% url "directory-entry-detail" slug=page.slug %}"
+        }
+    </script>
+    <script src="{% static "geocms/directory_entry.coffee" %}"></script>
+{% endblock %}

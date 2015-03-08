@@ -4,6 +4,7 @@ from django_hstore.fields import DictionaryField
 from mezzanine.core.models import Displayable
 from timedelta import TimedeltaField
 from osgeo import osr
+from django.core.urlresolvers import reverse
 
 from terrapyn.geocms.drivers import get_driver
 
@@ -24,6 +25,7 @@ class DataResource(Displayable):
     md5sum = models.CharField(max_length=64, blank=True, null=True) # the unique md5 sum of the data
     bounding_box = models.PolygonField(null=True, srid=4326, blank=True)
     import_log = models.TextField(null=True, blank=True)
+    associated_pages = models.ManyToManyField("pages.Page", blank=True, null=True, related_name='data_resources')
 
     driver = models.CharField(
         default='terrapyn.geocms.drivers.spatialite',
@@ -40,6 +42,9 @@ class DataResource(Displayable):
         )))
 
     big = models.BooleanField(default=False, help_text='Set this to be true if the dataset is more than 100MB') # causes certain drivers to optimize for datasets larger than memory
+
+    def get_absolute_url(self):
+        return reverse('resource-page', kwargs={'slug': self.slug})
 
     @property
     def srs(self):
@@ -88,9 +93,13 @@ class Style(Displayable):
     legend_width = models.IntegerField(null=True, blank=True)
     legend_height = models.IntegerField(null=True, blank=True)
     stylesheet = models.TextField()
+    associated_pages = models.ManyToManyField("pages.Page", blank=True, null=True, related_name='styles')
 
     def __unicode__(self):
         return self.title
+
+    def get_absolute_url(self):
+        return reverse('style-page', kwargs={'slug': self.slug})
 
     class Meta:
         permissions = (
@@ -103,9 +112,13 @@ class Layer(Displayable):
     default_style = models.ForeignKey(Style, related_name='default_for_layer')
     default_class = models.CharField(max_length=255, default='default')
     styles = models.ManyToManyField(Style, null=True, blank=True)
+    associated_pages = models.ManyToManyField("pages.Page", blank=True, null=True, related_name='layers')
 
     def __unicode__(self):
         return self.title
+
+    def get_absolute_url(self):
+        return reverse('layer-page', kwargs={'slug': self.slug})
 
     class Meta:
         permissions = (
@@ -113,3 +126,20 @@ class Layer(Displayable):
         )
 
 
+class LayerOrdering(models.Model):
+    lyaer_collection = models.ForeignKey("geocms.LayerCollection")
+    layer = models.ForeignKey(Layer)
+    order = models.IntegerField()
+
+    class Meta:
+        ordering = ('order',)
+
+
+class LayerCollection(Displayable):
+    layers = models.ManyToManyField(Layer, through=LayerOrdering)
+    associated_pages = models.ManyToManyField("pages.Page", blank=True, null=True, related_name='layer_collections')
+
+    class Meta:
+        permissions = (
+            ('view_layercollection', "View layer collection"),
+        )

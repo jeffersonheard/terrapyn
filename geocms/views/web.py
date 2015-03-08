@@ -9,7 +9,10 @@ class LayerPageView(TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super(LayerPageView, self).get_context_data(**kwargs)
         ctx['layer'] = get_object_or_404(Layer, slug=kwargs['slug'])
+        ctx['res'] = ctx['layer'].data_resource
+        ctx['metadata'] = ctx['res'].metadata.first()
 
+        return ctx
 
 class DataResourcePageView(TemplateView):
     template_name = 'terrapyn/geocms/res.html'
@@ -17,7 +20,9 @@ class DataResourcePageView(TemplateView):
     def get_context_data(self, **kwargs):
         ctx = super(DataResourcePageView, self).get_context_data(**kwargs)
         ctx['res'] = get_object_or_404(DataResource, slug=kwargs['slug'])
-
+        ctx['metadata'] = ctx['res'].metadata.first()
+        ctx['summary'] = ctx['res'].driver_instance.summary()
+        return ctx
 
 class StylePageView(TemplateView):
     template_name = 'terrapyn/geocms/style.html'
@@ -26,4 +31,4 @@ class StylePageView(TemplateView):
         ctx = super(StylePageView, self).get_context_data(**kwargs)
         ctx['style'] = get_object_or_404(Style, kwargs['slug'])
         ctx['layer'] = ctx['style'].default_for_layer.first()
-
+        return ctx

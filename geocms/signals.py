@@ -1,5 +1,7 @@
-from django.db.models.signals import post_save, pre_delete
+from django.db.models.signals import post_save, pre_delete, pre_save
 import logging
+import datetime
+from django.utils.timezone import utc
 
 from terrapyn.geocms.cache import CacheManager
 from .models import DataResource, Style, Layer
@@ -26,31 +28,31 @@ def delete_caches(sender, instance, **kwargs):
 
 def delete_data(sender, instance, **kwargs):
     _log.debug('Deleting data for {0}'.format(instance.title))
-    if instance.original_file:
-        instance.original_file.delete()
-    if instance.resource_file:
-        instance.resource_file.delete()
+    try:
+        if instance.original_file:
+            instance.original_file.delete()
+        if instance.resource_file:
+            instance.resource_file.delete()
+    except:
+        _log.error("Cannot delete data for {0}".format(instance.title))
 
 pre_delete.connect(delete_data, DataResource)
 pre_delete.connect(delete_caches, Layer)
 pre_delete.connect(delete_caches, Style)
 
 
-# def dataresource_pre_save(sender, instance, *args, **kwargs):
-#     if 'created' in kwargs and kwargs['created']:
-#         instance.last_refresh = instance.last_refresh or datetime.datetime.utcnow().replace(tzinfo=utc)
-#         if instance.refresh_every:
-#             instance.next_refresh = instance.last_refresh + instance.refresh_every
-#
-#
-# def dataresource_post_save(sender, instance, *args, **kwargs):
-#     if not instance.native_srs:
-#         if instance.big:
-#             tasks.data_resource_compute_fields.delay(instance.pk)
-#         else:
-#             instance.driver_instance.compute_spatial_metadata()
-#
-#
+def dataresource_pre_save(sender, instance, *args, **kwargs):
+    if 'created' in kwargs and kwargs['created']:
+        instance.last_refresh = instance.last_refresh or datetime.datetime.utcnow().replace(tzinfo=utc)
+        if instance.refresh_every:
+            instance.next_refresh = instance.last_refresh + instance.refresh_every
+
+
+def dataresource_post_save(sender, instance, created=False, *args, **kwargs):
+    if created and  not instance.metadata.all().exists():
+        instance.driver_instance.compute_spatial_metadata()
+
+
 # def purge_cache_on_delete(sender, instance, *args, **kwargs):
 #     if sender is DataResource:
 #         instance.resource.clear_cache()
@@ -81,8 +83,8 @@ pre_delete.connect(delete_caches, Style)
 #         drivers.CacheManager.get().remove_caches_for_layer(instance)
 #
 #
-# pre_save.connect(dataresource_pre_save, sender=DataResource, weak=False)
-# post_save.connect(dataresource_post_save, sender=DataResource, weak=False)
+pre_save.connect(dataresource_pre_save, sender=DataResource, weak=False)
+post_save.connect(dataresource_post_save, sender=DataResource, weak=False)
 # pre_delete.connect(purge_cache_on_delete, sender=Style, weak=False)
 # pre_delete.connect(purge_cache_on_delete, sender=DataResource, weak=False)
 # pre_delete.connect(purge_resource_data, sender=DataResource, weak=False)

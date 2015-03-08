@@ -184,7 +184,7 @@ class SpatialiteDriver(Driver):
                 '-explodecollections',
                 '-skipfailures',
                 '-append',
-                '-gt', '131072',
+                '-gt', '10384',
                 '-t_srs', 'epsg:3857',
                 '-f', 'SQLite',
                 '-dsco', 'SPATIALITE=YES',
