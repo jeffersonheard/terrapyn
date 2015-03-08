@@ -127,7 +127,7 @@ class Layer(Displayable):
 
 
 class LayerOrdering(models.Model):
-    lyaer_collection = models.ForeignKey("geocms.LayerCollection")
+    layer_collection = models.ForeignKey("geocms.LayerCollection")
     layer = models.ForeignKey(Layer)
     order = models.IntegerField()
 
