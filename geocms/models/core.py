@@ -46,6 +46,10 @@ class DataResource(Displayable):
     def get_absolute_url(self):
         return reverse('resource-page', kwargs={'slug': self.slug})
 
+
+    def get_admin_url(self):
+        return reverse("admin:geocms_dataresource_change", args=(self.id,))
+
     @property
     def srs(self):
         if not self.metadata.native_srs:
@@ -101,6 +105,10 @@ class Style(Displayable):
     def get_absolute_url(self):
         return reverse('style-page', kwargs={'slug': self.slug})
 
+    def get_admin_url(self):
+        return reverse("admin:geocms_style_change", args=(self.id,))
+
+
     class Meta:
         permissions = (
             ('view_style', "View stylesheet"),
@@ -108,8 +116,8 @@ class Style(Displayable):
 
 
 class Layer(Displayable):
-    data_resource = models.ForeignKey(DataResource)
-    default_style = models.ForeignKey(Style, related_name='default_for_layer')
+    data_resource = models.ForeignKey(DataResource, related_name='layers')
+    default_style = models.ForeignKey(Style, related_name='default_for')
     default_class = models.CharField(max_length=255, default='default')
     styles = models.ManyToManyField(Style, null=True, blank=True)
     associated_pages = models.ManyToManyField("pages.Page", blank=True, null=True, related_name='layers')
@@ -119,6 +127,9 @@ class Layer(Displayable):
 
     def get_absolute_url(self):
         return reverse('layer-page', kwargs={'slug': self.slug})
+
+    def get_admin_url(self):
+        return reverse("admin:geocms_layer_change", args=(self.id,))
 
     class Meta:
         permissions = (
@@ -136,8 +147,14 @@ class LayerOrdering(models.Model):
 
 
 class LayerCollection(Displayable):
-    layers = models.ManyToManyField(Layer, through=LayerOrdering)
+    layers = models.ManyToManyField(Layer, through=LayerOrdering, related_name='collections')
     associated_pages = models.ManyToManyField("pages.Page", blank=True, null=True, related_name='layer_collections')
+
+    def get_absolute_url(self):
+        return reverse('layercollection-page', kwargs={'slug': self.slug})
+
+    def get_admin_url(self):
+        return reverse("admin:geocms_layercollection_change", args=(self.id,))
 
     class Meta:
         permissions = (

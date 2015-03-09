@@ -12,6 +12,7 @@ urlpatterns = patterns('',
     url(r'^style/(?P<slug>[a-z0-9\-/]+)/', views.StylePageView.as_view(), name='style-page'),
     url(r'^layer/(?P<slug>[a-z0-9\-/]+)/', views.LayerPageView.as_view(), name='layer-page'),
     url(r'^res/(?P<slug>[a-z0-9\-/]+)/', views.web.DataResourcePageView.as_view(), name='resource-page'),
+    url(r'^layers/(?P<slug>[a-z0-9\-/]+)/', views.web.LayerCollectionPageView.as_view(), name='layercollection-page'),
 
     # Data API
 
@@ -40,6 +41,6 @@ urlpatterns = patterns('',
 
     # Terrapyn Extra REST API
 
-    url(r'api/directory-entry/(?P<slug>[a-z0-9\-/]+)/$', api.DirectoryEntryDetail.as_view(), name='directoryentry-detail'),
-    url(r'api/directory-entry/$', api.DirectoryEntryList.as_view(), name='directoryentry-list'),
+    url(r'api/page/(?P<slug>[a-z0-9\-/]+)/$', api.TerrapynPageDetail.as_view(), name='terrapyn-page-detail'),
+    url(r'api/page/$', api.TerrapynPageList.as_view(), name='terrapyn-page-list'),
 )

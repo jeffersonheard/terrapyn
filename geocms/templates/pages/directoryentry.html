@@ -1,28 +1,105 @@
 {% extends "pages/page.html" %}
 {% load pages_tags mezzanine_tags staticfiles %}
 
+{% block left_panel %}
+<div class="panel panel-default">
+    <div class="panel-heading"><strong>Children</strong></div>
+
+    <div class="list-group">
+        {% for x in page.children.all %}
+        <a class="list-group-item" href="{{ x.get_absolute_url }}">{{ x.title }}</a>
+        {% empty %}
+            <div class="list-group-item text-muted"><i>No children</i></div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
 {% block main %}
     {% set_page_permissions page %}
 
-    <div class="row">
-    <div class="col-md-12">
-        <div id="treeview"></div>
+
+    <div class="col-md-4 col-sm-4">
+    <div class="panel panel-default">
+    <div class="panel-heading">
+        <strong>Data</strong>
+        {% if page.perms.add %}
+                <a href="{% url "admin:geocms_dataresource_add" %}?associated_pages={{ page.pk }}" class="btn btn-default btn-xs pull-right">
+                    <i class="glyphicon glyphicon-plus"></i>
+                </a>
+        {% endif %}
+    </div>
+
+    <div class="list-group">
+        {% for x in page.data_resources.all %}
+        <a class="list-group-item" href="{{ x.get_absolute_url }}">{{ x.title }}</a>
+        {% empty %}
+            <div class="list-group-item text-muted"><i>No data</i></div>
+        {% endfor %}
+    </div>
     </div>
     </div>
 
-    <div class="btn-toolbar">
-    {% if page.perms.add %}
-        <div class="btn-group">
-            <button class="btn btn-default add-style">Add Style</button>
-            <button class="btn btn-default add-data">Add Data</button>
-            <button class="btn btn-default add-layer">Add Layer</button>
-            <button class="btn btn-default add-layer">Add Directory</button>
-        </div>
-    {% endif %}
-    {% if page.perms.change %}
-        <div class="btn-group"><a class="btn btn-default" href="/admin/pages/page/{{ page.pk }}/">Edit</a></div>
-    {% endif %}
+    <div class="col-md-4 col-sm-6">
+    <div class="panel panel-default">
+    <div class="panel-heading"><strong>Layers</strong>
+        {% if page.perms.add %}
+            <a href="{% url "admin:geocms_layer_add" %}?associated_pages={{ page.pk }}" class="btn btn-default btn-xs pull-right">
+                <i class="glyphicon glyphicon-plus"></i>
+            </a>
+        {% endif %}
     </div>
+    <div class="list-group">
+        {% for x in page.layers.all %}
+        <a class="list-group-item" href="{{ x.get_absolute_url }}">{{ x.title }}</a>
+        {% empty %}
+            <div class="list-group-item text-muted"><i>No layers</i></div>
+        {% endfor %}
+    </div>
+    </div>
+    </div>
+
+    <div class="col-md-4 col-sm-6">
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <strong>Collections</strong>
+            {% if page.perms.add %}
+                <a href="{% url "admin:geocms_layercollection_add" %}?associated_pages={{ page.pk }}" class="btn btn-default btn-xs pull-right">
+                    <i class="glyphicon glyphicon-plus"></i>
+                </a>
+            {% endif %}
+        </div>
+    <div class="list-group">
+        {% for x in page.layer_collections.all %}
+        <a class="list-group-item" href="{{ x.get_absolute_url }}">{{ x.title }}</a>
+        {% empty %}
+            <div class="list-group-item text-muted"><i>No collections</i></div>
+        {% endfor %}
+    </div>
+    </div>
+    </div>
+
+    <div class="col-md-4 col-sm-6">
+    <div class="panel panel-default">
+        <div class="panel-heading"><strong>Styles</strong>
+        {% if page.perms.add %}
+                <a href="{% url "admin:geocms_style_add" %}?associated_pages={{ page.pk }}" class="btn btn-default btn-xs pull-right">
+                    <i class="glyphicon glyphicon-plus"></i>
+                </a>
+        {% endif %}
+        </div>
+    <div class="list-group">
+        {% for x in page.styles.all %}
+        <a class="list-group-item" href="{{ x.get_absolute_url }}">{{ x.title }}</a>
+        {% empty %}
+            <div class="list-group-item text-muted"><i>No styles</i></div>
+        {% endfor %}
+    </div>
+    </div>
+    </div>
+
+
+
 
 {% endblock %}
 
@@ -32,11 +109,4 @@
 
 {% block extra_js %}
     <script src="{% static "js/bootstrap-treeview.min.css" %}"></script>
-    <script type="text/javascript">
-        var DIRECTORY_ENTRY = {
-            slug: "{{ page.slug }}",
-            endpoint: "{% url "directory-entry-detail" slug=page.slug %}"
-        }
-    </script>
-    <script src="{% static "geocms/directory_entry.coffee" %}"></script>
 {% endblock %}

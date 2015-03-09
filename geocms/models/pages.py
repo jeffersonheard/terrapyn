@@ -93,12 +93,12 @@ class DirectoryEntry(Page):
         return request.user.is_authenticated()
 
 
-def set_permissions_for_new_catalog_page(sender, instance, created, *args, **kwargs):
-    if instance.parent and created:
-        instance.copy_permissions_from_parent()
-
-set_permissions = post_save.connect(set_permissions_for_new_catalog_page, sender=DirectoryEntry, weak=False)
-
-
+# def set_permissions_for_new_catalog_page(sender, instance, created, *args, **kwargs):
+#     if instance.parent and created:
+#         instance.copy_permissions_from_parent()
+#
+# set_permissions = post_save.connect(set_permissions_for_new_catalog_page, sender=DirectoryEntry, weak=False)
+#
+#
 
 

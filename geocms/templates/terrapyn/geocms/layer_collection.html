@@ -1,0 +1,83 @@
+{% extends "pages/page.html" %}
+{% load mezzanine_tags pages_tags geoanalytics_tags staticfiles %}
+
+{% block meta_title %}{{ layer_collection.title }}{% endblock %}
+{% block title %}{{ layer_collection.title }} <small>Layer Collection</small>{% endblock %}
+
+{% block breadcrumb_menu %}
+    <li><strong>Related</strong></li>
+    <li class="dropdown">
+        <a class="dropdown-toggle" type="button" id="relatedPages" data-toggle="relatedPagesDropdown" aria-expanded="true">In Groups <span class="caret"></span></a>
+        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
+            {% for p in layer_collection.associated_pages.all %}
+            <li role="presentation"><a role="menuitem" tabindex="-1" href="{{ p.get_absolute_url }}">{{ p.titles }}</a></li>
+            {% endfor %}
+        </ul>
+    </li>
+
+    <li class="dropdown">
+        <a class="dropdown-toggle" id="relatedLayers" data-toggle="relatedLayersDropdown">Layers <span class="caret"></span></a>
+        <ul class="dropdown-menu" role="menu">
+
+            {% for l in layer_collection.layers.all %}
+            <li><a href="{{ l.get_absolute_url }}">{{ l.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </li>
+
+    <li class="dropdown">
+        <a class="dropdown-toggle" id="relatedData" data-toggle="relatedDataDropdown">Data <span class="caret"></span></a>
+        <ul class="dropdown-menu" role="menu">
+            {% for l in layer_collection.layers.all %}
+            <li><a href="{{ l.data_resource.get_absolute_url }}">{{ l.data_resource.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </li>
+
+    <li class="dropdown">
+        <a class="dropdown-toggle" id="relatedData" data-toggle="relatedStyleDropdown">Styles <span class="caret"></span></a>
+        <ul class="dropdown-menu" role="menu">
+            {% for l in layer_collection.layers.all %}
+            <li><a href="{{ l.default_style.get_absolute_url }}">{{ l.default_style.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </li>
+{% endblock %}
+
+{% block main %}{{ block.super }}
+    <div class='map' id="map" style='width: 100%;'></div>
+    <div class="col-md-6" id="fullscreen"></div>
+
+    {% for layer in layers.all %}
+        <h6><a href="{{ layer.data_resource.get_absolute_url }}">Link to original data and web-services.</a></h6>
+        {% if layer.default_style.legend %}
+        <p><img src='{{layer.default_style.legend.url}}'/></p>
+        {% endif %}
+    {% endfor %}
+
+    {% if layer_collection.description %}
+    <div class="row">
+        <div class="col-sm-12">
+        {{ layer_collection.description|md|safe }}
+        </div>
+    </div>
+    {% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+    <script src="////cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.2/underscore-min.js"></script>
+    <script src="{% static 'js/ol-debug.js' %}" type="text/javascript"></script>
+    <script src="{% static "js/bootstrap-treeview.min.js" %}" type="text/javascript"></script>
+    <script type="text/javascript">
+    var LAYERS = {% autoescape off %}{{ layers_json }}{% endautoescape %};
+    var PAGE_MENU = {
+        endpoint: "{% url "terrapyn-page-detail" slug=layer_collection.associated_pages.first.slug %}"
+    };
+    </script>
+    <script src="{% static 'geocms/layer_collection.js' %}" type="text/javascript"></script>
+{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static "css/ol.css" %}" />
+{% endblock %}

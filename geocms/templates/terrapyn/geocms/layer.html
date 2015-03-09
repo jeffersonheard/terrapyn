@@ -1,10 +1,48 @@
 {% extends "base.html" %}
 {% load mezzanine_tags pages_tags geoanalytics_tags staticfiles %}
 
+{% block meta_title %}{{ layer.title }}{% endblock %}
+
+{% block title %}{{ layer.title }} <small>Layer</small>{% endblock %}
+
+{% block breadcrumb_menu %}
+    <li><strong>Related</strong></li>
+    <li class="dropdown">
+        <a class="dropdown-toggle" id="relatedPages" data-toggle="relatedPagesDropdown" aria-expanded="true">In Groups <span class="caret"></span></a>
+        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
+            {% for p in layer.associated_pages.all %}
+            <li><a role="menuitem" tabindex="-1" href="{{ p.get_absolute_url }}">{{ p.titles }}</a></li>
+            {% endfor %}
+        </ul>
+    </li>
+
+    <li class="dropdown">
+        <a class="dropdown-toggle" id="relatedLayers" data-toggle="relatedLayersDropdown">Layer Collections <span class="caret"></span></a>
+        <ul class="dropdown-menu" role="menu">
+
+            {% for l in layer.collections.all %}
+            <li><a href="{{ l.get_absolute_url }}">{{ l.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </li>
+
+    <li class="dropdown">
+        <a class="dropdown-toggle" id="relatedData" data-toggle="relatedDataDropdown">Styles <span class="caret"></span></a>
+        <ul class="dropdown-menu" role="menu">
+            <li><a href="{{ layer.default_style.get_absolute_url }}"><strong>{{ layer.default_style.title }}</strong></a></li>
+            <li class="divider"></li>
+            {% for l in layer.styles.all %}
+            <li><a href="{{ l.get_absolute_url }}">{{ l.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </li>
+
+    <li class="pull-right"><strong>Data: </strong><a href="{{ layer.data_resource.get_absolute_url }}">{{ layer.data_resource.title }}</a></li>
+{% endblock %}
+
 {% block main %}{{ block.super }}
-    <h1>{{ layer.title }}</h1>
+
     <div class='map' id="map" style='width: 100%;'></div>
-    <div class="col-md-6" id="fullscreen"></div>
     <h6><a href="{{ layer.data_resource.get_absolute_url }}">Link to original data and web-services.</a></h6>
     {% if layer.default_style.legend %}
     <p><img src='{{layer.default_style.legend.url}}'/></p>

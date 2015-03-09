@@ -2,16 +2,35 @@
 
 {% load mezzanine_tags pages_tags geoanalytics_tags inplace_edit %}
 
-{% block title %}{{ res.title }}{% endblock %}
+{% block meta_title %}{{ res.title }}{% endblock %}
+
+{% block title %}{{ res.title }} <small>Data Resource</small>{% endblock %}
+
+{% block breadcrumb_menu %}
+    <li><strong>Related</strong></li>
+    <li class="dropdown">
+        <a class="dropdown-toggle" type="button" id="relatedPages" data-toggle="relatedPagesDropdown" aria-expanded="true">In Groups <span class="caret"></span></a>
+        <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu1">
+            {% for p in res.associated_pages.all %}
+            <li role="presentation"><a role="menuitem" tabindex="-1" href="{{ p.get_absolute_url }}">{{ p.titles }}</a></li>
+            {% endfor %}
+        </ul>
+    </li>
+
+    <li class="dropdown">
+        <a class="dropdown-toggle" id="relatedLayers" data-toggle="relatedLayersDropdown">Layers <span class="caret"></span></a>
+        <ul class="dropdown-menu" role="menu">
+
+            {% for l in res.layers.all %}
+            <li><a href="{{ l.get_absolute_url }}">{{ l.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </li>
+{% endblock %}
+
 {% block main %}{{ block.super }}
-    <h1>{{ res.title }} <small>Data Resource</small></h1>
 
     {% if metadata %}
-    <div class="alert alert-success">
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
-        Last updated {{ res.resource.last_refresh|date:"l, F j Y, f a " }}
-    </div>
-    <hr>
     {% else %}
     <div class="alert alert-warning">
         <button type="button" class="close" data-dismiss="alert">&times;</button>
