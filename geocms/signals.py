@@ -55,8 +55,6 @@ def shave_tile_caches(sender, instance, bbox, *args, **kwargs):
 def trim_tile_caches(sender, instance, *args, **kwargs):
     if sender is Style:
         CacheManager.get().remove_caches_for_style(instance)
-    elif sender is DataResource:
-        CacheManager.get().remove_caches_for_resource(instance)
     elif sender is Layer:
         CacheManager.get().remove_caches_for_layer(instance)
 

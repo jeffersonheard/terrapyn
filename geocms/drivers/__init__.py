@@ -335,11 +335,12 @@ class Driver(object):
             if self.resource.big and os.path.exists(sum_path):
                 with open(sum_path) as sm:
                     return cPickle.load(sm)
-
-            df = self.as_dataframe(**kwargs)
         except NotImplementedError:
             return None
+        except:
+            pass
 
+        df = self.as_dataframe(**kwargs)
         keys = [k for k in df.keys() if k != 'geometry']
         type_table = {
             'float64': 'number',
@@ -364,7 +365,8 @@ class Driver(object):
             if 'categorical' in ctx[i]['tags']:
                 ctx[i]['uniques'] = [x for x in s.unique()]
             for k, v in s.describe().to_dict().items():
-                ctx[i][k] = v
+                if not isinstance(v, buffer):
+                    ctx[i][k] = v
 
         if self.resource.big:
             with open(sum_path, 'w') as sm:

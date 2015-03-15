@@ -10,9 +10,17 @@ from . import Driver
 from pandas import DataFrame
 from shapely import wkb
 from psycopg2 import connect
-from django.db import connection as django_db_connection
 from django.db import connections as django_db_connections
 import pandas
+from django.utils.text import slugify
+import logging
+from terrapyn.geocms.drivers import iter
+from django.conf import settings
+import re
+
+TERRAPYN_DEFAULT_DATABASE=getattr(settings, 'TERRAPYN_DEFAULT_DATABASE', 'default')
+
+_log = logging.getLogger('terrapyn.driver_messages')
 
 
 def identity(x):
@@ -41,29 +49,58 @@ class PostGISDriver(Driver):
         * srid : the native srid of the tables
     """
 
+    WEB_MERCATOR_EXTENT = [-20037508.34, -20037508.34, 20037508.34, 20037508.34]
+
+    @staticmethod
+    def _layer_name(s):
+        s = unicode(s)
+        layer_name = os.path.split(s)[-1]
+        layer_name = re.sub('-', '_', slugify(layer_name.rsplit('.', 1)[0]))
+        return layer_name
+
+
+    def __init__(self, data_resource, **kwargs):
+        self._conn = None  # lazily open the connection
+        self._layers = {}  # the whole set of layers available from this resource
+        self._default_layer = None  # the default layer object (dict)
+        self._conn_template = None  # the template for Mapnik rendering
+        self._ready = False  # has ready_data_resource been called yet?
+
+        super(PostGISDriver, self).__init__(data_resource, **kwargs)
+
+
+    def _connection(self):
+        cfg = self.resource.driver_config or {}
+        alias = cfg.get('django_dbms_alias', TERRAPYN_DEFAULT_DATABASE)
+        return django_db_connections[alias]
+
     def ready_data_resource(self, **kwargs):
-        slug, srs = super(PostGISDriver, self).ready_data_resource(**kwargs)
-        cfg = self.resource.driver_config
-        conn = {
+        super(PostGISDriver, self).ready_data_resource(**kwargs)
+
+        if not self._ready:
+            _log.info("readying resource parameters for {0}".format(self.resource.slug))
+        cfg = self.resource.driver_config or {}
+
+        self._conn_template = {
             'type': 'postgis'
         }
 
         def addcfg(k):
             if k in cfg:
-                conn[k] = cfg[k]
+                self._conn_template[k] = cfg[k]
 
-        if cfg.get('use_django_dbms', False):
-            alias = cfg.get('django_dbms_alias', 'default')
+        if cfg.get('use_django_dbms', True):
+            alias = cfg.get('django_dbms_alias', TERRAPYN_DEFAULT_DATABASE)
             db = s.DATABASES[alias]
-            conn['dbname'] = db['NAME']
+            self._conn_template['dbname'] = db['NAME']
             if "HOST" in db and len(db["HOST"]) > 0:
-                conn['host'] = db['HOST']
+                self._conn_template['host'] = db['HOST']
             if "USER" in db and len(db["USER"]) > 0:
-                conn['user'] = db['USER']
+                self._conn_template['user'] = db['USER']
             if "PASSWORD" in db and len(db["PASSWORD"]) > 0:
-                conn['password'] = db['PASSWORD']
+                self._conn_template['password'] = db['PASSWORD']
             if "PORT" in db and len(db["PORT"]) > 0:
-                conn['port'] = db['PORT']
+                self._conn_template['port'] = db['PORT']
         else:
             addcfg('dbname')
             addcfg('host')
@@ -71,19 +108,60 @@ class PostGISDriver(Driver):
             addcfg('password')
             addcfg('port')
 
-        addcfg('estimate_extent')
-        
-        if 'sublayer' in kwargs:
-            conn['id'] = conn['name'] = kwargs['sublayer']
-        table, geometry_field = self._table(**kwargs)
+        # introspect the database to get all the layers
+        connection = self._connection()
+        self._layers = {
+            table: {
+                'table': table,
+                'geometry_column': 'GEOMETRY' if geometry_column == 'geometry' else geometry_column,
+                'srid': srid
+            }
+            for table, geometry_column, _, _, srid, _
+            in connection.execute("select * from geometry_columns").fetchall()
+        }
 
-        conn['table'] = table
-        conn['geometry_field'] = geometry_field
+        # add any layers that require special selects from the config
+        self._layers.update(cfg.get('custom_layers', {}))
+        # make sure that tables are properly parenthesized
+        for v in self._layers.values():
+            v['table'] = v['table'] if not v['table'].lower().startswith('select') else '(' + v['table'] + ')'
+
+        # if there's more than one layer, the user can specify the name of the default
+        set_default = cfg.get('default_layer', None)
+        if set_default:
+            self._default_layer = self._layers[set_default]
+        else:
+            self._default_layer = self._layers.values()[0]
+
+        self._ready = True
 
         if self.resource.big:
-            conn['cursor_size'] = cfg.get('cursor_size', 2000)
+            self._conn_template['cursor_size'] = cfg.get('cursor_size', 2000)
 
-        return slug, srs, conn
+        self._ready = True
+
+    def get_rendering_parameters(self, **kwargs):
+        srs = osr.SpatialReference()
+        srs.ImportFromEPSG(self._default_layer['srid'])
+
+        if 'sublayer' in kwargs:
+            layer = self._layers[kwargs['sublayer']]
+            table = layer['table']
+            srid = layer['srid']
+            srs = osr.SpatialReference()
+            srs.ImportFromEPSG(srid)
+        else:
+            layer = self._default_layer
+            table = layer['table']
+            srid = layer['srid']
+            srs = osr.SpatialReference()
+            srs.ImportFromEPSG(srid)
+
+        conn = dict(self._conn_template)
+        conn['table'] = table
+
+        return self.resource.slug, srs, conn
+
 
     def _connection(self):
         # create a database connection, or use the

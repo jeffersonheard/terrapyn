@@ -184,7 +184,7 @@ class SpatialiteDriver(Driver):
                 '-explodecollections',
                 '-skipfailures',
                 '-append',
-                '-gt', '131072',
+                '-gt', '10384',
                 '-t_srs', 'epsg:3857',
                 '-f', 'SQLite',
                 '-dsco', 'SPATIALITE=YES',
@@ -413,7 +413,7 @@ class SpatialiteDriver(Driver):
             table = '(' + table + ")"
 
         cursor.execute("""
-        SELECT * FROM {table} as w WHERE ST_Intersects({geometry}, w.{geometry_field}) = 1 
+        SELECT * FROM {table} as w WHERE ST_Intersects({geometry}, w.{geometry_field}) = 1
 	    AND w.OGC_FID in (
              SELECT ROWID FROM SpatialIndex WHERE f_table_name = '{index}' and search_frame = {geometry})
         """.format(
