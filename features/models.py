@@ -61,14 +61,18 @@ class StructuredDataset(models.Model):
         )
 
     @staticmethod
-    def create_user(user, dbms):
+    def create_user(user, dbms=default_dbms):
         with connections[dbms].cursor() as c:
             c.execute('create schema if not exists {0}'.format(user.username))
 
     @staticmethod
-    def delete_user(user, dbms):
-        with connections[dbms].cursor() as c:
-            c.execute('drop schema if exists {0} cascade'.format(user.username))
+    def delete_user(user, dbms=default_dbms):
+        with atomic():
+            for ds in StructuredDataset.objects.filter(owner=user, dbms=dbms):
+                ds.delete()
+
+            with connections[dbms].cursor() as c:
+                c.execute('drop schema if exists {0} cascade'.format(user.username))
 
     def delete(self, using=None):
         self.drop_tables()
@@ -86,6 +90,9 @@ class StructuredDataset(models.Model):
             return self._by_field_index[item]
         else:
             return self._by_field_name[item]
+
+    def __contains__(self, item):
+        return item in self._by_field_name[item]
 
     def __cmp__(self, other):
         return cmp(self.name, other.name)
@@ -450,6 +457,8 @@ class SimpleField(models.Model):
 
         if self.unique:
             val += ' unique'
+        if self.not_null:
+            val += ' not null'
 
         return val
 
@@ -617,20 +626,54 @@ class ForeignKey(models.Model):
 
 class ManyToManyManager(Manager):
     @method_decorator(atomic)
-    def create_m2m(self, **kwargs):
-        m = ManyToMany.objects.create(**kwargs)
-        if not m.through:
-            m.add()
-        return m
+    def create_m2m(self, dataset1, dataset2, to_dataset1_name=None, to_dataset2_name=None, reverse=True):
+        to_dataset1_name = to_dataset1_name or (dataset2.name + '_set')
+        to_dataset2_name = (to_dataset2_name or (dataset1.name + '_set')) if reverse else None
+
+        if ManyToMany.objects.filter(dataset1=dataset1, dataset2=dataset2, to_dataset1_name=to_dataset1_name).exists() or\
+           ManyToMany.objects.filter(dataset1=dataset1, dataset2=dataset2, to_dataset2_name=to_dataset2_name).exists():
+            raise ImproperlyConfigured("Cannot create a duplicate name for many-to-many fields")
+
+
+        m2m = ManyToMany.objects.create(
+            to_dataset1_name=to_dataset1_name,
+            to_dataset2_name=to_dataset2_name,
+            dataset1=dataset1,
+            dataset2=dataset2,
+            reverse=reverse,
+        )
+        m2m.add()
+        return m2m
+
+    def create_through(self, dataset, key1, key2, to_dataset1_name=None, to_dataset2_name=None, reverse=True):
+        dataset1 = key1.rel_dataset
+        dataset2 = key2.rel_dataset
+        to_dataset1_name = to_dataset1_name or (dataset2.name + '_set')
+        to_dataset2_name = (to_dataset2_name or (dataset1.name + '_set')) if reverse else None
+
+        if ManyToMany.objects.filter(dataset1=dataset1, dataset2=dataset2, to_dataset1_name=to_dataset1_name).exists() or\
+           ManyToMany.objects.filter(dataset1=dataset1, dataset2=dataset2, to_dataset2_name=to_dataset2_name).exists():
+            raise ImproperlyConfigured("Cannot create a duplicate name for many-to-many fields")
+
+        return ManyToMany.objects.create(
+            dataset1=dataset1,
+            dataset2=dataset2,
+            through=dataset,
+            through_key1=key1,
+            through_key2=key2,
+            reverse=reverse
+        )
 
 
 class ManyToMany(models.Model):
-    dataset = models.ForeignKey(StructuredDataset, related_name="relationships")
-    name = models.CharField(max_length=100)
-    rel_dataset = models.ForeignKey(StructuredDataset, null=True, blank=True)
+    dataset1 = models.ForeignKey(StructuredDataset, related_name="relationships")
+    dataset2 = models.ForeignKey(StructuredDataset, null=True, blank=True)
+    to_dataset1_name = models.CharField(max_length=100)
+    to_dataset2_name = models.CharField(max_length=100, null=True, blank=True)
     through = models.ForeignKey(StructuredDataset, null=True, blank=True)
-    through_from_key = models.ForeignKey(SimpleField, null=True, blank=True)
-    through_to_key = models.ForeignKey(SimpleField, null=True, blank=True)
+    through_key1 = models.ForeignKey(SimpleField, null=True, blank=True)
+    through_key2 = models.ForeignKey(SimpleField, null=True, blank=True)
+    reverse = models.BooleanField(default=True)
 
     objects = ManyToManyManager()
 
@@ -654,14 +697,14 @@ class ManyToMany(models.Model):
                 create index {schema}.{myself}_{other}_{other}_{other_pk}_idx on {other_schema}.{myself}_{other} ({other}_{other_pk});
 
             """.format(
-                schema=self.dataset.schema_name,
-                other_schema=self.rel_dataset.schema_name,
-                myself=self.dataset.name,
-                other=self.rel_dataset.name,
-                myself_pk=self.dataset.pk.name,
-                other_pk=self.rel_dataset.pk.name,
-                myself_kind=self.dataset.pk.kind,
-                other_kind=self.rel_dataset.pk.kind
+                schema=self.dataset1.schema_name,
+                other_schema=self.dataset2.schema_name,
+                myself=self.dataset1.name,
+                other=self.dataset2.name,
+                myself_pk=self.dataset1.pk.name,
+                other_pk=self.dataset2.pk.name,
+                myself_kind=self.dataset1.pk.kind,
+                other_kind=self.dataset2.pk.kind
             ).split(';')
         return query
 
@@ -669,18 +712,19 @@ class ManyToMany(models.Model):
         query = []
         if not self.through:
             query = ["drop table {schema}.{myself_other}".format(
-                schema=self.dataset.schema_name,
-                myself=self.dataset.name,
-                other=self.rel_dataset.name,
+                schema=self.dataset1.schema_name,
+                myself=self.dataset1.name,
+                other=self.dataset2.name,
             )]
 
         return query
 
     def add(self):
-        self.dataset.execute_sql(*self.get_add_postgres())
+        self.dataset1.execute_sql(*self.get_add_postgres())
 
     def drop(self):
-        self.dataset.execute_sql(*self.get_drop_postgres())
+        if not self.through:
+            self.dataset1.execute_sql(*self.get_drop_postgres())
 
 
 
