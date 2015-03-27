@@ -72,6 +72,11 @@ class SpatialiteDriver(Driver):
         # create a database connection, or use the
         if self._conn is None:
             _log.info('connecting to the database for {0}'.format(self.resource.slug))
+            source_filename = os.path.join(settings.MEDIA_ROOT, self.resource.resource_file.name)
+            if not os.path.exists(source_filename) or (os.stat(source_filename).st_size != self.resource.resource_file.size()):  # say it's stored in S3...
+                with open(source_filename, 'w') as out:
+                    out.write(self.resource.resource_file.read())
+
             conn = db.connect(source_filename)
             conn.enable_load_extension(True)
             conn.execute("select load_extension('libspatialite.so')")
