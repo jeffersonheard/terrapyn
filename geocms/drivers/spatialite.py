@@ -72,7 +72,7 @@ class SpatialiteDriver(Driver):
         # create a database connection, or use the
         if self._conn is None:
             _log.info('connecting to the database for {0}'.format(self.resource.slug))
-            conn = db.connect(os.path.join(settings.MEDIA_ROOT, self.resource.resource_file.name))
+            conn = db.connect(source_filename)
             conn.enable_load_extension(True)
             conn.execute("select load_extension('libspatialite.so')")
             conn.execute("select load_extension('/usr/lib/sqlite3/pcre.so')")

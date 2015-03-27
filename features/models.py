@@ -50,6 +50,8 @@ class StructuredDataset(models.Model):
         help_text="The name of the collection, must be a valid SQL name")
     primary_key = models.CharField(max_length=100, default='id',
         help_text='The field name for the primary key of the dataset. For geographic data, this may be OGC_FID')
+    primary_geometry_field = models.CharField(max_length=100, null=True, blank=True)
+
     owner = models.ForeignKey(OWNER_MODEL, null=True, blank=True)
 
     objects = StructuredDatasetManager()
@@ -185,6 +187,9 @@ class StructuredDataset(models.Model):
         :param field: An instance of SimpleField, ForeignKey, GeometryField, or ManyToMany
         :return: None
         """
+        if not field.pk:
+            field.save()
+
         if field.name not in self._by_field_name:
             max_order = FieldOrdering.objects.filter(dataset=self).aggregate(
                 Max('relative_order'))['relative_order__max']
@@ -226,6 +231,12 @@ class StructuredDataset(models.Model):
 
     def add_feature(self, feature):
         """Add a new feature to the database"""
+        raise NotImplemented()
+
+    def upsert_feature(self, feature):
+        raise NotImplemented()
+
+    def upsert_features(self, features):
         raise NotImplemented()
 
     def add_features(self, features):
@@ -411,6 +422,12 @@ def get_simplefield_kind_choices():
     return tuple(kinds)
 
 class SimpleField(models.Model):
+    INTEGER = 'int'
+    FLOAT = 'float'
+    TEXT = 'text'
+    DATE = 'date'
+    JSON = 'json'
+
     dataset = models.ForeignKey(StructuredDataset, related_name='simple_fields')
     name = models.CharField(max_length=100)
     kind = models.CharField(max_length=10, choices=get_simplefield_kind_choices())
@@ -530,6 +547,7 @@ class ForeignKey(models.Model):
     not_null = models.BooleanField(default=False)
     index = models.BooleanField(default=True)
     reverse_name = models.CharField(max_length=100, null=True, blank=True)
+    unique = models.BooleanField(default=False)
 
     @property
     def selection_name(self):
@@ -555,11 +573,12 @@ class ForeignKey(models.Model):
         other = self.dataset.all[self.rel_name][self.rel_field]
         kind = other.kind
 
-        val = "{name} {rel_kind} REFERENCES {rel_name} ({rel_field})".format(
+        val = "{name} {rel_kind} REFERENCES {rel_name} ({rel_field}) {unique}".format(
             name=self.name,
             rel_name=self.rel_dataset.table_name,
             rel_field=self.rel_field.name if self.rel_field else 'id',
-            rel_kind=kind
+            rel_kind=kind,
+            unique="UNIQUE" if self.unique else ""
         )
         return val
 
@@ -633,7 +652,6 @@ class ManyToManyManager(Manager):
         if ManyToMany.objects.filter(dataset1=dataset1, dataset2=dataset2, to_dataset1_name=to_dataset1_name).exists() or\
            ManyToMany.objects.filter(dataset1=dataset1, dataset2=dataset2, to_dataset2_name=to_dataset2_name).exists():
             raise ImproperlyConfigured("Cannot create a duplicate name for many-to-many fields")
-
 
         m2m = ManyToMany.objects.create(
             to_dataset1_name=to_dataset1_name,
