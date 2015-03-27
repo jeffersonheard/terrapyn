@@ -201,6 +201,10 @@ class SpatialiteDriver(Driver):
         e4326 = e4326.ExportToWkt()
 
         out_filename = self.get_filename('sqlite')
+        if not os.path.exists(source_filename):  # say it's stored in S3...
+            with open(source_filename, 'w') as out:
+                out.write(self.resource.original_file.read())
+
         archive = ZipFile(source_filename)
         names = archive.namelist()
         names = filter(lambda x: ('.' in x) and (not x.startswith('__MACOSX')), sorted(names))
