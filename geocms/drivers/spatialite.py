@@ -202,6 +202,8 @@ class SpatialiteDriver(Driver):
 
         out_filename = self.get_filename('sqlite')
         if not os.path.exists(source_filename):  # say it's stored in S3...
+            p, f = os.path.split(source_filename)
+            sh.mkdir('-p', p)
             with open(source_filename, 'w') as out:
                 out.write(self.resource.original_file.read())
 
