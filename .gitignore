@@ -9,7 +9,5 @@ dist/
 doc/build/*
 .idea/
 __MACOSX
-static/media/
-geoanalytics/static/
 local_settings.py
 .DS_Store
